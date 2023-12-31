@@ -1,6 +1,6 @@
 
-# Load geometry
+# Define Geometry
 
-# Call particle in cell for geometry
+# Call Particle Mover
 
-# visualize results
+# Visualize
