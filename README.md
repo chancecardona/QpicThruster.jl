@@ -27,6 +27,19 @@ Flow Velocity:
     u = u(x,t) (flow velocity is a time varying vector field, where at a specific x,t it gives the velocity at that point of spacetime.
     bulk velocity: average of u. = volume flow rate / cross sectional area.
 
+Boltzmann Relationship:
+    n_e = n_0 * exp(- (q_e * phi) / (k*T_e))
+    where:
+        n_e is the electron density at a given potential (phi)
+        n_0 is the equilibrium electron density
+        q_e is the elementary charge of the electron
+        phi is the electric potential
+        k is the boltzmann constant
+        T_e is the temperatue of the electrons.
+    Relates how density of electrons changes, and simplifies it for calculation. 
+    This assumes the electrons are much less massive and much faster than the ions and thus move "instantaneously".
+
+
 Mesh Sims:
     e.g. dx,dy,dz meshes over a discrete space. each spatially connected "node" of simulation is connected in the simulation domain too.
     Just a mesh of data points, w/ a predefined number of neighbors but these can become degenerate or tangled during simulation if the 
