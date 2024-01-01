@@ -1,6 +1,8 @@
 #!/bin/env julia
 
 using Plots
+using Printf
+using Ranges
 include("eval_2d_potential_GS.jl")
 
 # Constants
@@ -16,8 +18,8 @@ function electrostatic_PIC()
     """ Treats electrons are a fluid (Boltzmann Relation). 
         Doesnt account for magnetic or relativistic effects. """
     # Setup 
-    global n_0 = 1e12      # Equilibrium density of electrons at a potential (kg/m^3)
-    global ϕ_0 = 0         # Reference Potential (gauge field variant for the potential)
+    n_0 = 1e12      # Equilibrium density of electrons at a potential (kg/m^3)
+    ϕ_0 = 0         # Reference Potential (gauge field variant for the potential)
     T_e = 1         # Electron temp (eV)
     T_i = 0.1       # Ion temp (eV)
     v_drift = 7000  # Ion injection velocity (7km/s)
@@ -132,16 +134,16 @@ function electrostatic_PIC()
     # Loop through all times
     for t = 1:nt
         # reset field quantities
-        d_n = zeros(nx, ny) # Number density
+        n_d = zeros(nx, ny) # Number density
         E_x = zeros(nx, ny) # E field x component
         E_y = zeros(nx, ny) # E field y component
         q_dist = zeros(nx, ny) # Charge distribution
 
         # 1. Compute Charge Density   	
         #   deposit charge to nodes
-	    for p = 1:np                        # loop over particles
+	    for p = 1:np                         # loop over particles
 	    	f_im = 1 + part_x[p,1] / dh      # imaginary i index of particle's cell
-	    	i = floor(f_im)                  # integral part
+            i = floor(f_im)                  # integral part
 	    	hx = f_im - i                    # the remainder
             
             f_re = 1 + part_x[p,2] / dh      # real j index of particle's cell
@@ -174,7 +176,7 @@ function electrostatic_PIC()
         E_x[2:nx-1,:] = ϕ[1:nx-2,:] - ϕ[3:nx,:] # Central Difference on internal nodes X
         E_y[:,2:ny-1] = ϕ[:,1:ny-2] - ϕ[:,3:ny] # Central Difference on internal nodes Y
         E_x[1,:] = 2*(ϕ[1,:] - ϕ[2,:]) # Forward Difference on X=0
-        E_y[1,:] = 2*(ϕ[:,1] - ϕ[:,2]) # Forward Difference on Y=0
+        E_y[:,1] = 2*(ϕ[:,1] - ϕ[:,2]) # Forward Difference on Y=0
         E_x[nx,:] = 2*(ϕ[nx-1,:] - ϕ[nx,:]) # Backward Difference on X=L_x
         E_y[:,ny] = 2*(ϕ[:,ny-1] - ϕ[:,ny]) # Backward Difference on Y=L_y
         E_x = E_x / (2*dh) # Divide by nominator
@@ -188,8 +190,8 @@ function electrostatic_PIC()
 
         part_x[np+1 : np+np_insert, 1] = rand(np_insert,1)*dh # x position
         part_x[np+1 : np+np_insert, 2] = rand(np_insert,1)*L_y # y position
-        part_v[np+1 : np+np_insert, 1] = v_drift + (-1.5 + rand(np_insert, 1) + rand(np_insert,1) + rand(np_insert,1)) * v_th
-        part_v[np+1 : np+np_insert, 2] = 0.5 + (-1.5 + rand(np_insert, 1) + rand(np_insert,1) + rand(np_insert,1)) * v_th
+        part_v[np+1 : np+np_insert, 1] = v_drift .+ (-1.5 .+ rand(np_insert, 1) + rand(np_insert, 1) + rand(np_insert, 1)) * v_th
+        part_v[np+1 : np+np_insert, 2] = 0.5 .+ (-1.5 .+ rand(np_insert, 1) + rand(np_insert, 1) + rand(np_insert, 1)) * v_th
 
         np += np_insert
  
@@ -224,39 +226,46 @@ function electrostatic_PIC()
             #   Inside Plate (our obstacle object)
             in_box = false
             if ((i >= plate_dims[1,1] && i < plate_dims[1, 2]) &&
-                (j >= plate_dism[2,1] && i < plate_dims[2, 2]))
+                (j >= plate_dims[2,1] && i < plate_dims[2, 2]))
                 in_box = true
             end  
             #   Absorbing Boundary (left, right, top, or in object)
-            if (part_x[p, 1] < 0 || 
+            if (p > 1 && (
+                part_x[p, 1] < 0 || 
                 part_x[p, 1] >= L_x ||
                 part_x[p, 2] >= L_y ||
-                in_box)
+                in_box))
                 part_x[p, :] = part_x[np, :] # Kill particle by replacing it with the last particle in particle array
                 part_v[p, :] = part_v[np, :] # Kill particle v by replacing it with the last particle v in particle array
                 np -= 1 # Reduce particle count
                 p -= 1 # Reduce particle index so this entry is processed again
             end
+            p += 1 # Move to next particle
         end
 
         # 6. Output (Plot)
         if (mod(t,25) == 0 || t == nt)      # plot only every 25 time steps
             # Density Plot
-            p_density = contourf(n_d', 1e11:1e11:1.1e12, title=sprintf("Density %i", t))
-            plot!(contour(object', [1 1], linecolor=:black, linewidth=2))
-            colorbar!(p_density)
-           
-            # Potential Plot
-            p_potential = contourf(ϕ', title=sprintf("Potential %i", t))
-            plot!(contour(object', [1 1], linecolor=:black, linewidth=2))
-            colorbar!(p_potential)
-
+            contour_levels = range(minimum(n_d), 1e11, maximum(n_d), nothing)
+            print(contour_levels)
+            p_density = contourf(n_d', contour_levels, colorbar=true, title=@sprintf("Density %i", t))
+            # (plotName with ! suffix means it will modify the previous plot)
+            # Add the geometry-object outline
+            contour!(object', levels=[1], linecolor=:black, linewidth=2)
             # Draw
             display(p_density)
+           
+            # Potential Plot
+            p_potential = contourf(ϕ', colorbar=true, title=@sprintf("Potential %i", t))
+            # (plotName with ! suffix means it will modify the previous plot)
+            # Add the geometry-object outline
+            contour!(object', levels=[1], linecolor=:black, linewidth=2)
+            # Draw
             display(p_potential)
+
         end
         
-        print("Time Step %i, Particles %i",t, np)
+        print("Time Step $t, Particles $np:")
     end # finish iterating through times
     print("Complete!\n")
 end
