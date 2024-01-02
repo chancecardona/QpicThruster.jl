@@ -14,6 +14,17 @@ const m_oxygen = 32*AMU     # mass of molecular oxygen
 const m_ion = m_oxygen      # mass of an ion
 
 
+function rectangle_from_coords(xb,yb,xt,yt)
+    [
+        xb  yb
+        xt  yb
+        xt  yt
+        xb  yt
+        xb  yb
+        NaN NaN
+    ]
+end
+
 function electrostatic_PIC()
     """ Treats electrons are a fluid (Boltzmann Relation). 
         Doesnt account for magnetic or relativistic effects. """
@@ -47,11 +58,7 @@ function electrostatic_PIC()
     plate_dims[2, :] = [1, floor(ny / 2)]              # y range
 
     # create an object domain for visualization
-    object = zeros(nx,ny)
-    for j = plate_dims[2,1]:plate_dims[2,2]
-        # For object values from x_min to x_max, and y_min to y_max, set to 1
-        object[plate_dims[1,1]:plate_dims[1,2],j] = ones(plate_dims[1,2] - plate_dims[1,1] + 1, 1)
-    end
+    object = rectangle_from_coords(plate_dims[1,1], plate_dims[1,2], plate_dims[2,1], plate_dims[2,2])
 
     ## End Geometry
 
@@ -142,12 +149,12 @@ function electrostatic_PIC()
         # 1. Compute Charge Density   	
         #   deposit charge to nodes
 	    for p = 1:np                         # loop over particles
-            f_im = floor(1 + (part_x[p,1] / dh))      # imaginary x index of particle's cell
-            i::Int = f_im < nx ? f_im : nx     # integral part (limit to being nx)
+            f_im = 1 + (part_x[p,1] / dh)      # imaginary x index of particle's cell
+            i::Int = floor(f_im)
 	    	hx = f_im - i                    # the remainder
             
-            f_re = floor(1 + (part_x[p,2] / dh))      # real y index of particle's cell
-            j::Int = f_re < ny ? f_re : ny     # integral part
+            f_re = 1 + (part_x[p,2] / dh)      # real y index of particle's cell
+            j::Int = floor(f_re)
             hy = f_re - j                    # the remainder
 
             # interpolate charge to nodes
@@ -248,14 +255,11 @@ function electrostatic_PIC()
             # Density Plot
             p_density = contour(n_d', fill=true, colorbar=true, clims=(1e11, 1.1e12), title=@sprintf("Density %i", t))
             # Add the geometry-object outline
-            object_geometry_density = contour(object', levels=[1], linecolor=:black, linewidth=4)
-            plot!(p_density, object_geometry_density)
-           
+            plot!(object[:,2], object[:,1], linecolor=:black, linewidth=2, legend=false)
             # Potential Plot
             p_potential = contour(ϕ', fill=true, colorbar=true, title=@sprintf("Potential %i", t))
             # Add the geometry-object outline
-            object_geometry_potential = contour(object', levels=[1], linecolor=:black, linewidth=2)
-            plot!(p_potential, object_geometry_potential)
+            plot!(object[:,2], object[:,1], linecolor=:black, linewidth=2, legend=false)
 
             # Combine and show
             combined_plot = plot(p_density, p_potential, layout=(1,2))
