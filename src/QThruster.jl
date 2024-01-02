@@ -1,5 +1,7 @@
 #!/bin/env julia
 
+#module QThruster
+
 include("particle_in_cell.jl")
 
 # Define Geometry
@@ -8,3 +10,5 @@ include("particle_in_cell.jl")
 electrostatic_PIC()
 
 # Visualize
+
+#end

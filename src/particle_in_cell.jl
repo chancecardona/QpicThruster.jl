@@ -32,7 +32,7 @@ function electrostatic_PIC()
     # Set simulation domain
     nx = 16               # number of nodes in x direction
     ny = 10               # number of nodes in y direction
-    nt = 200              # number of time steps
+    nt = 100              # number of time steps
     dh = l_D              # cell size
     np_insert = (ny-1) * 15 # insert 15 particles per cell
 
@@ -143,11 +143,11 @@ function electrostatic_PIC()
         #   deposit charge to nodes
 	    for p = 1:np                         # loop over particles
 	    	f_im = 1 + part_x[p,1] / dh      # imaginary i index of particle's cell
-            i = floor(f_im)                  # integral part
+            i::Int = floor(f_im)                  # integral part
 	    	hx = f_im - i                    # the remainder
             
             f_re = 1 + part_x[p,2] / dh      # real j index of particle's cell
-            j = floor(f_re)                  # integral part
+            j::Int = floor(f_re)                  # integral part
             hy = f_re - j                    # the remainder
 
             # interpolate charge to nodes
@@ -199,10 +199,10 @@ function electrostatic_PIC()
         p = 1
         while (p <= np)
             f_i = 1 + part_x[p, 1] / dh
-            i = floor(f_i) # i index of particle's cell
+            i::Int = floor(f_i) # i index of particle's cell
             hx = f_i - i # fractional x position in cell
             f_j = 1 + part_x[p, 2] / dh
-            j = floor(f_j) # j index of particle's cell
+            j::Int = floor(f_j) # j index of particle's cell
             hy = f_j - j # fractional y position in cell
 
             # Gather Exlectric Field
@@ -246,23 +246,24 @@ function electrostatic_PIC()
         # 6. Output (Plot)
         if (mod(t,25) == 0 || t == nt)      # plot only every 25 time steps
             # Density Plot
-            contour_levels = range(minimum(n_d), 1e11, maximum(n_d), nothing)
-            print(contour_levels)
-            p_density = contourf(n_d', contour_levels, colorbar=true, title=@sprintf("Density %i", t))
-            # (plotName with ! suffix means it will modify the previous plot)
+            #contour_levels = range(minimum(n_d), 1e11, maximum(n_d), nothing)
+			contour_levels = 1e11:1e11:1.1e12
+            #print("Contour map ranges: $contour_levels")
+            p_density = contour(n_d', fill=true, colorbar=true, title=@sprintf("Density %i", t))
             # Add the geometry-object outline
-            contour!(object', levels=[1], linecolor=:black, linewidth=2)
+            object_geometry = contour(object', levels=[1], linecolor=:black, linewidth=2)
             # Draw
-            display(p_density)
+            density_plot = plot!(p_density, object_geometry)
            
             # Potential Plot
-            p_potential = contourf(ϕ', colorbar=true, title=@sprintf("Potential %i", t))
-            # (plotName with ! suffix means it will modify the previous plot)
+            p_potential = contour(ϕ', colorbar=true, fill=true, title=@sprintf("Potential %i", t))
             # Add the geometry-object outline
-            contour!(object', levels=[1], linecolor=:black, linewidth=2)
+            object_geometry = contour(object', levels=[1], linecolor=:black, linewidth=2)
             # Draw
-            display(p_potential)
-
+            potential_plot = plot!(p_potential, object_geometry)
+			#plot(density_plot, potential_plot, layout=2, show=true)
+			#plot!([p_density, p_potential], object_geometry, layout=2, show=true)
+			gui()
         end
         
         print("Time Step $t, Particles $np:")

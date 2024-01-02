@@ -47,8 +47,9 @@ function eval_2d_potential_GS(ϕ, ϕ_0, ϕ_p, n_d, n_0, T_e, plate_dims)
         b[1:nx:nn] .= ϕ_0           # fixed potential on x=0
     
         # set potential on fixed nodes
-        for j = plate_dims[2,1]:plate_dims[2,2]
-            b[[plate_dims[1,1] : plate_dims[1,2]] .+ (j-1) * nx] = ones(plate_dims[1,2] - plate_dims[1,1] + 1, 1) .* ϕ_p      # wall potential
+        for j = plate_dims[2,1] : plate_dims[2,2]
+			# b[(5:7) .+ 4 * 16] = ones(7 - 5 + 1, 1) = ones(3,1)
+            b[plate_dims[1,1]+(j-1)*nx : plate_dims[1,2]+(j-1)*nx] = ones(plate_dims[1,2] - plate_dims[1,1] + 1, 1) .* ϕ_p      # wall potential
         end
     
         # update nodes
