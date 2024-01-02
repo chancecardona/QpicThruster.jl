@@ -6,7 +6,7 @@ using Ranges
 include("eval_2d_potential_GS.jl")
 
 # Constants
-global const ϵ₀ = 0.854e-12        # Permittivity of Free Space
+global const ϵ₀ = 8.854e-12        # Permittivity of Free Space
 global const q_e = 1.602e-19        # Elementary electron charge
 const k_b = 1.381e-23       # Boltzmann Constant
 const AMU = 1.661e-27       # Atomic Mass Unit
@@ -32,7 +32,7 @@ function electrostatic_PIC()
     # Set simulation domain
     nx = 16               # number of nodes in x direction
     ny = 10               # number of nodes in y direction
-    nt = 100              # number of time steps
+    nt = 200              # number of time steps
     dh = l_D              # cell size
     np_insert = (ny-1) * 15 # insert 15 particles per cell
 
@@ -142,12 +142,12 @@ function electrostatic_PIC()
         # 1. Compute Charge Density   	
         #   deposit charge to nodes
 	    for p = 1:np                         # loop over particles
-	    	f_im = 1 + part_x[p,1] / dh      # imaginary i index of particle's cell
-            i::Int = floor(f_im)                  # integral part
+            f_im = floor(1 + (part_x[p,1] / dh))      # imaginary x index of particle's cell
+            i::Int = f_im < nx ? f_im : nx     # integral part (limit to being nx)
 	    	hx = f_im - i                    # the remainder
             
-            f_re = 1 + part_x[p,2] / dh      # real j index of particle's cell
-            j::Int = floor(f_re)                  # integral part
+            f_re = floor(1 + (part_x[p,2] / dh))      # real y index of particle's cell
+            j::Int = f_re < ny ? f_re : ny     # integral part
             hy = f_re - j                    # the remainder
 
             # interpolate charge to nodes
@@ -251,19 +251,22 @@ function electrostatic_PIC()
             #print("Contour map ranges: $contour_levels")
             p_density = contour(n_d', fill=true, colorbar=true, title=@sprintf("Density %i", t))
             # Add the geometry-object outline
-            object_geometry = contour(object', levels=[1], linecolor=:black, linewidth=2)
+            object_geometry_density = contour(object', levels=[1], linecolor=:black, linewidth=2)
             # Draw
-            density_plot = plot!(p_density, object_geometry)
+            #density_plot = plot!(p_density, object_geometry_density)
+            plot!(p_density, object_geometry_density)
            
             # Potential Plot
-            p_potential = contour(ϕ', colorbar=true, fill=true, title=@sprintf("Potential %i", t))
+            p_potential = contour(ϕ', fill=true, colorbar=true, title=@sprintf("Potential %i", t))
             # Add the geometry-object outline
-            object_geometry = contour(object', levels=[1], linecolor=:black, linewidth=2)
+            object_geometry_potential = contour(object', levels=[1], linecolor=:black, linewidth=2)
             # Draw
-            potential_plot = plot!(p_potential, object_geometry)
-			#plot(density_plot, potential_plot, layout=2, show=true)
-			#plot!([p_density, p_potential], object_geometry, layout=2, show=true)
-			gui()
+            #potential_plot = plot!(p_potential, object_geometry_potential)
+            plot!(p_potential, object_geometry_potential)
+
+            # Combine and show
+            combined_plot = plot(p_density, p_potential, layout=(1,2))
+            display(combined_plot)
         end
         
         print("Time Step $t, Particles $np:")
