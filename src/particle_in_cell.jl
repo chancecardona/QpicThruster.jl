@@ -167,10 +167,10 @@ function electrostatic_PIC()
         n_d[:,ny] = 2 * n_d[:,ny]
         
         # add density floor for plotting and to help the solver
-        n_d = n_d .+ 1e4
+        n_d .+= 1e4
 
         # 2. Compute E Potential
-        n_d = eval_2d_potential_GS(ϕ, ϕ_0, ϕ_p, n_d, n_0, T_e, plate_dims)
+        ϕ = eval_2d_potential_GS(ϕ, ϕ_0, ϕ_p, n_d, n_0, T_e, plate_dims)
 
         # 3. Compute E Field
         E_x[2:nx-1,:] = ϕ[1:nx-2,:] - ϕ[3:nx,:] # Central Difference on internal nodes X
@@ -246,30 +246,26 @@ function electrostatic_PIC()
         # 6. Output (Plot)
         if (mod(t,25) == 0 || t == nt)      # plot only every 25 time steps
             # Density Plot
-            #contour_levels = range(minimum(n_d), 1e11, maximum(n_d), nothing)
-			contour_levels = 1e11:1e11:1.1e12
-            #print("Contour map ranges: $contour_levels")
-            p_density = contour(n_d', fill=true, colorbar=true, title=@sprintf("Density %i", t))
+            p_density = contour(n_d', fill=true, colorbar=true, clims=(1e11, 1.1e12), title=@sprintf("Density %i", t))
             # Add the geometry-object outline
-            object_geometry_density = contour(object', levels=[1], linecolor=:black, linewidth=2)
-            # Draw
-            #density_plot = plot!(p_density, object_geometry_density)
+            object_geometry_density = contour(object', levels=[1], linecolor=:black, linewidth=4)
             plot!(p_density, object_geometry_density)
            
             # Potential Plot
             p_potential = contour(ϕ', fill=true, colorbar=true, title=@sprintf("Potential %i", t))
             # Add the geometry-object outline
             object_geometry_potential = contour(object', levels=[1], linecolor=:black, linewidth=2)
-            # Draw
-            #potential_plot = plot!(p_potential, object_geometry_potential)
             plot!(p_potential, object_geometry_potential)
 
             # Combine and show
             combined_plot = plot(p_density, p_potential, layout=(1,2))
+            # Draw
             display(combined_plot)
+            sleep(1.5)
         end
         
         print("Time Step $t, Particles $np:")
     end # finish iterating through times
     print("Complete!\n")
+    sleep(15)
 end
