@@ -1,9 +1,12 @@
 #!/bin/env julia
 
+# Code originally adapted from https://www.particleincell.com/2011/particle-in-cell-example/ (credit Lubos), by Chance Cardona in 2024
+
 using Plots
 using Printf
 using Ranges
-include("eval_2d_potential_GS.jl")
+include("eval_2d_potential_GS.jl") # Solver for Maxwell's Equations (or Poisson's)
+include("geometry.jl") # Geometry of Object / Environment
 
 # Constants
 global const ϵ₀ = 8.854e-12        # Permittivity of Free Space
@@ -13,17 +16,6 @@ const AMU = 1.661e-27       # Atomic Mass Unit
 const m_oxygen = 32*AMU     # mass of molecular oxygen
 const m_ion = m_oxygen      # mass of an ion
 
-
-function rectangle_from_coords(xb,yb,xt,yt)
-    [
-        xb  yb
-        xt  yb
-        xt  yt
-        xb  yt
-        xb  yb
-        NaN NaN
-    ]
-end
 
 function electrostatic_PIC()
     """ Treats electrons are a fluid (Boltzmann Relation). 
@@ -44,7 +36,7 @@ function electrostatic_PIC()
     nx = 16               # number of nodes in x direction
     ny = 10               # number of nodes in y direction
     nt = 200              # number of time steps
-    dh = l_D              # cell size
+    dh = l_D              # cell size (cells are square)
     np_insert = (ny-1) * 15 # insert 15 particles per cell
 
     nn = nx * ny            # total number of nodes
@@ -147,17 +139,20 @@ function electrostatic_PIC()
         q_dist = zeros(nx, ny) # Charge distribution
 
         # 1. Compute Charge Density   	
-        #   deposit charge to nodes
+        # Charge density is a scalar field that varies across space.
+        # Compute it for each infinitesimal mesh cell volume by summing the particles
+        # in the volume, then distributing it to the 4 (if 2D) (8 if 3D) actual mesh-grid nodes proportional
+        # to how near the particle is to the corresponding node.
 	    for p = 1:np                         # loop over particles
-            f_im = 1 + (part_x[p,1] / dh)      # imaginary x index of particle's cell
-            i::Int = floor(f_im)
-	    	hx = f_im - i                    # the remainder
+            x_ind = 1 + (part_x[p,1] / dh)      # x (fractional included) index of particle's cell
+            i::Int = floor(x_ind)
+	    	hx = x_ind - i                    # the remainder
             
-            f_re = 1 + (part_x[p,2] / dh)      # real y index of particle's cell
-            j::Int = floor(f_re)
-            hy = f_re - j                    # the remainder
+            y_ind = 1 + (part_x[p,2] / dh)      # y (fractional included) index of particle's cell
+            j::Int = floor(y_ind)
+            hy = y_ind - j                    # the remainder
 
-            # interpolate charge to nodes
+            # interpolate charge to nodes via the Scatter Operation
 	    	q_dist[i, j] = q_dist[i, j] + (1-hx) * (1-hy)
 	    	q_dist[i+1, j] = q_dist[i+1, j] + hx * (1-hy)
             q_dist[i, j+1] = q_dist[i, j+1] + (1-hx) * hy
@@ -195,10 +190,12 @@ function electrostatic_PIC()
             np_insert = max_part - np
         end
 
-        part_x[np+1 : np+np_insert, 1] = rand(np_insert,1)*dh # x position
-        part_x[np+1 : np+np_insert, 2] = rand(np_insert,1)*L_y # y position
+        # Assumes Birdsall approximation of maxwellian sampling distribution
+        part_x[np+1 : np+np_insert, 1] = rand(np_insert,1)*dh # x position (within leftmost cell column)
+        part_x[np+1 : np+np_insert, 2] = rand(np_insert,1)*L_y # y position (anywhere in mesh y)
+        M = 1
         part_v[np+1 : np+np_insert, 1] = v_drift .+ (-1.5 .+ rand(np_insert, 1) + rand(np_insert, 1) + rand(np_insert, 1)) * v_th
-        part_v[np+1 : np+np_insert, 2] = 0.5 .+ (-1.5 .+ rand(np_insert, 1) + rand(np_insert, 1) + rand(np_insert, 1)) * v_th
+        part_v[np+1 : np+np_insert, 2] = sqrt(M/12) .* ( sum( rand(np_insert, 1) for _ in 1:M ) .- M/2 ) * v_th
 
         np += np_insert
  
@@ -233,15 +230,14 @@ function electrostatic_PIC()
             #   Inside Plate (our obstacle object)
             in_box = false
             if ((i >= plate_dims[1,1] && i < plate_dims[1, 2]) &&
-                (j >= plate_dims[2,1] && i < plate_dims[2, 2]))
+                (j >= plate_dims[2,1] && j < plate_dims[2, 2]))
                 in_box = true
             end  
             #   Absorbing Boundary (left, right, top, or in object)
-            if (p > 1 && (
-                part_x[p, 1] < 0 || 
+            if (part_x[p, 1] < 0 || 
                 part_x[p, 1] >= L_x ||
                 part_x[p, 2] >= L_y ||
-                in_box))
+                in_box)
                 part_x[p, :] = part_x[np, :] # Kill particle by replacing it with the last particle in particle array
                 part_v[p, :] = part_v[np, :] # Kill particle v by replacing it with the last particle v in particle array
                 np -= 1 # Reduce particle count
@@ -251,9 +247,15 @@ function electrostatic_PIC()
         end
 
         # 6. Output (Plot)
-        if (mod(t,25) == 0 || t == nt)      # plot only every 25 time steps
+        if (mod(t,25) == 0 || t == 1 || t == nt)      # plot only every 25 time steps, or the first/last.
             # Density Plot
-            p_density = contour(n_d', fill=true, colorbar=true, clims=(1e11, 1.1e12), title=@sprintf("Density %i", t))
+            density_ticks = collect(1e11:1e11:1.1e12)
+            p_density = contour(n_d', 
+                                fill=true, 
+                                colorbar=true, clims=(1e11, 1.1e12), 
+                                # TODO: add colorbar formatting for GR
+                                #colorbar_ticks=(density_ticks, [ @sprintf("%.1e", tick) for tick in density_ticks ]),
+                                title=@sprintf("Density %i", t))
             # Add the geometry-object outline
             plot!(object[:,2], object[:,1], linecolor=:black, linewidth=2, legend=false)
             # Potential Plot
@@ -268,7 +270,7 @@ function electrostatic_PIC()
             sleep(1.5)
         end
         
-        print("Time Step $t, Particles $np:")
+        print("Time Step $t (t=$(t*dt)s), Particles $np:")
     end # finish iterating through times
     print("Complete!\n")
     sleep(15)
