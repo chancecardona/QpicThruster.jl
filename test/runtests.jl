@@ -1,6 +1,6 @@
-using QThruster
+using flow_around_plate
 using Test
 
-@testset "QThruster.jl" begin
+@testset "flow_around_plate.jl" begin
     # Write your tests here.
 end

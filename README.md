@@ -1,6 +1,6 @@
-# Thruster Simulation in Julia
+# Quantum Particle-in-Cell (Q-PIC) Thruster simulation in Julia
 
--[![Build Status](https://github.com/chancecardona/QThruster.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/chancecardona/QThruster.jl/actions/workflows/CI.yml?query=branch%3Amain)
+-[![Build Status](https://github.com/chancecardona/QpicThruster.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/chancecardona/QpicThruster.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 ## Background (Plasma Simulation)
 
@@ -61,15 +61,20 @@ Flow Field Specifications:
 ## Particle-In-Cell Julia
 
 This repo uses the Particle In Cell method on a fixed mesh (Eulerian specification) to simulate various thrusters and plasma objects.
+
+### Flow Around Plate
 The first, and working is a simple conducting plate (that serves as an absorbing boundary) accounting for electrostatics.
-This shows the electron Density and the E-field across the geometry.
-To run this, try
+See https://www.particleincell.com/2010/es-pic-method/ for more explanation.
+
+This plotss the electron Density and the E-field across the geometry.
+To run this, try:
 ```
-julia src/QThruster.jl
+julia src/flow_around_plate.jl
 ```
 
-## Hall Effect Sim
+### Hall Effect Sim
 Todo (Particle in Cell Simulation of Stationary Plasma Thruster - Taccogna).
+https://docs.juliahub.com/General/HallThruster/stable/
 
-## Q Thruster Sim
+### Q Thruster Sim
 Todo https://github.com/AndrewChap/Q-ThrusterSimulation/blob/master/README.md
