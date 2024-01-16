@@ -58,12 +58,43 @@ Flow Field Specifications:
         Lagranian sims use a mesh representing not spacetime but the fluid-parcels, and instead needs to calculate their x position
         at a specific time.
 
+Particle-In-Cell:
+    PIC methods use the langrangian specification to track a fluid parcel in (continuos) phase-space by:
+    1. Calculate Plasma parameters and values such as the Charge density. 
+       This is done by summing up each "particle" for each "cell" and then distributing each particle's effects to the appropriate mesh point and apply boundaries.
+       The cell is the area (if 2D) or the volume (if 3D), etc formed by the mesh-points.
+    2. Solve Maxwell's Equations (or an approximation / simplification of them) for the Electric (and Magnetic, etc) potential.
+       - Finite Difference Method:
+         Do calculation for the field only on the discrete set of mesh-grid points. 
+         Can then utilize a solver for the PDE on the mesh points, such as the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method) used to solve Poisson's Equation in 2D for our geometry.
+       - Finite Element Method:
+         Also discretize space into mesh points, then take the PDE and optimize error of a trial solution (using basis-functions) until convergence.
+       - Spectral Method:
+         Use the FFT and then again optimize solutions using basis functions (but now the eigenvalue problem is high oerder and defined over the whole domain usually).
+    3. Next, we can move the particles by weighing the fields (summed over each mesh point that encapsulates the cell) for each particle to calculate the force.
+    4. Can then solve the particle velocity and position by using something like the [Leap-frog method](https://en.wikipedia.org/wiki/Leapfrog_method) (a 2nd order explicit solver) (or the [Boris Method](https://www.particleincell.com/2011/vxb-rotation/)) to compute the position and velocity at the appropriate timesteps after the fields are updated.
+       4.5 Boundary conditions are important to keep track to and can range from moving the particle, specular diffraction, deleting the particle, etc).
+    5. We can then Apply Boundary Conditions (if not done in the previous step).
+    6. Generate Particles (such as the Birdsall approximation of a Maxwellian electron sampling distribution).
+    7. And whatever other effects to account for (like collisions).
+    
+Simulating Collisions:
+    Direct Simulation Monte Carlo (DSMC):
+        A method for simulating interparticle collisions. This is essentially PIC for neutral gasses.
+        Another approach is to solve the fluid conservation equations. (CFD)(https://en.wikipedia.org/wiki/Computational_fluid_dynamics) techniques generally assume a Maxwellian distribution function for the gas molecule velocities (and thus isn't valid for non thermalized fluid flows).
+        DSMC doesn't assume any distribution and instead, at each time step, pairs up each particle that's in the same cell and then collides them according to a specified probability.
+    Monte Carlo Collisions (MCC):
+        If density of the collision target >> density of the collision source, and the collision frequency is low, we can treat the target particles as a "cloud".
+        This is much faster but doesn't conserve momentum.
+    
+
 ## Particle-In-Cell Julia
 
 This repo uses the Particle In Cell method on a fixed mesh (Eulerian specification) to simulate various thrusters and plasma objects.
+Oftentimes COMSOL is used with the AC-DC module to model the magnetic field, which can be exported 
 
 ### Flow Around Plate
-The first, and working is a simple conducting plate (that serves as an absorbing boundary) accounting for electrostatics.
+The first, and working is a simple 2D conducting plate (that serves as an absorbing boundary) accounting for electrostatics.
 See https://www.particleincell.com/2010/es-pic-method/ for more explanation.
 
 This plotss the electron Density and the E-field across the geometry.
