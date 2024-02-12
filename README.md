@@ -103,9 +103,52 @@ To run this, try:
 julia src/flow_around_plate.jl
 ```
 
-### Hall Effect Sim
-Todo (Particle in Cell Simulation of Stationary Plasma Thruster - Taccogna).
-https://docs.juliahub.com/General/HallThruster/stable/
+TODO: Use [Gridap.jl](https://github.com/gridap/Tutorials/blob/master/docs/src/index.md) to model the mesh and solve the PDE's using FEM.
+Can also implement something like [Trixi.jl](https://github.com/trixi-framework/Trixi.jl) for CFD.
 
-### Q Thruster Sim
-Todo https://github.com/AndrewChap/Q-ThrusterSimulation/blob/master/README.md
+### Hall Effect Sim
+(Reference: *Particle in Cell Simulation of Stationary Plasma Thruster - Taccogna*).
+Code references for this already exist, see:
+https://docs.juliahub.com/General/HallThruster/stable/
+called as an example in:
+```
+julia src/hall_thruster/hall_thruster.jl
+```
+
+
+Would be cool to eventually model this in a consistent framework and verify against the model listed above (TODO).
+
+### Q Thruster Sim (TODO)
+I am currently in the process of converting this repo into julia.
+https://github.com/AndrewChap/Q-ThrusterSimulation/blob/master/README.md
+Code Setup (since it doesn't have much of a readme):
+- QThrusterMain.cu
+  - Defines macro constants (like CPUrun, toggling if particles are created on CPU or GPU, etc)
+  - Defines physical constants, like pi
+  - Create E&B Fields:
+    - Loads `input_deck_2_7.txt`, a COMSOL file.
+    - Reads the electric field file's array's rows and col's, and other COMSOL consts from the file.
+    - Uses `EB_LOAD.cuh` to load the `complex/b_real.txt` `complex/a_imag.txt` etc field files to arrays.
+    - Then starts calculating lagrangian packet parameters like real particles per macroparticle, calculates Cone (E-M cavity shape) geometry and those parameters.
+  - Original CPU Calculation:
+    - Defined last in `QThrusterMain.cu`. 
+    - Original derivation, has the most comments on the physical effects being taken into consideration and the branching simulation strategy, explained in QThrusterMemoryOrganization.pptx
+  - CPU:
+    - Modern CPU kernel is then defined if not using GPU.
+    - Manually creates electrons/positrons as normal, but can see a little clearer than in the GPU, but with optimizations.
+  - GPU:
+    - Starts managing branches as outlined in the QThrusterMemoryOrganization.pptx, transfers particles to GPU, or can create them on GPU.
+    - ThrustCalculationGPU 1-3 are then called.
+    - `kernel.cu` is called here as simulation is run as normal using full branching strategy described in powerpoint.
+    - GPU memory is then freed.
+
+Process:
+- Convert .sln file and .vcxproj files to (cmake)/ makefiles (MakeItSo.jl for the project?)
+- Convert ForceCurveMatlabReader.m to jl
+- Figure out how to load comsol data into julia --> should already be done by the cuda.
+  - `complex/b_imag.txt` and etc are literally just `sprintf`'d and indexed into arrays.
+- Need to save data to VTK file, then view it.
+  - WriteVTK
+  - [VTKView](https://juliapackages.com/p/vtkview) [examples](https://github.com/j-fu/VTKView.jl/blob/master/src/Examples/Examples.jl)
+    - Can use this to verify against original cone_open.vtk and cone_closed.vtk files.
+- Call kernel and .cuh files from julia if need be. Call QThrusterMain.cu in jl or redefine it.
